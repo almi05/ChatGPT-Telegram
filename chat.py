@@ -1,31 +1,43 @@
 import openai
 import telegram
-import os
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
+# Set up the OpenAI API client
 openai.api_key = "<your OpenAI API key>"
+
+# Set up the Telegram bot
 bot = telegram.Bot(token="<your Telegram bot token>")
+updater = Updater(bot=bot)
+dispatcher = updater.dispatcher
 
-# Handle the /start command
-@bot.message_handler(commands=['start'])
-def start(message):
-    bot.send_message(chat_id=message.chat_id, text="Hello! I am a Telegram bot powered by ChatGPT. Send me a message and I will try to respond.")
 
-# Handle all other messages
-@bot.message_handler(func=lambda message: True)
-def respond(message):
-    # Use ChatGPT to generate a response to the message
+def start(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Hello! I am a bot that can chat with ChatGPT. Send me a message and I will try to respond using ChatGPT.")
+
+
+def chat(update, context):
+    # Get the user's message
+    message = update.message.text
+
+    # Use the OpenAI API to generate a response from ChatGPT
     response = openai.Completion.create(
         engine="text-davinci-002",
-        prompt=message.text,
-        temperature=0.5,
+        prompt=message,
         max_tokens=1024,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0
+        temperature=0.5,
     )
 
-    # Send the response as a message
-    bot.send_message(chat_id=message.chat_id, text=response.text)
+    # Send the response back to the user
+    context.bot.send_message(chat_id=update.effective_chat.id, text=response["choices"][0]["text"])
 
-# Run the bot
-bot.polling()
+
+# Set up the start command handler
+start_handler = CommandHandler("start", start)
+dispatcher.add_handler(start_handler)
+
+# Set up the message handler
+message_handler = MessageHandler(Filters.text, chat)
+dispatcher.add_handler(message_handler)
+
+# Start the bot
+updater.start_polling()
